@@ -1,7 +1,7 @@
 from playFHE.ckks import ckks_scheme
 from timeit import default_timer as timer
 
-print("=== CKKS TEST ===")
+print("=== CKKS TEST ===\n")
 
 N = 2**3
 delta = 2**30
@@ -47,7 +47,7 @@ c_add_const = c1 + p2
 c_sub = c1 - c2
 c_sub_const = c1 - p2
 c_mult_const = c1 * p2 * p1
-c_mult = c1 * [c_mult_const, evk]
+c_mult = c1 * (c_mult_const, evk)
 
 print(c_mult)
 

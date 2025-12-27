@@ -5,7 +5,7 @@ from playFHE import util
 
 ##################
 
-def ntt_psi(coeffs, n, q, root2n):#, q, root2n):
+def ntt_psi(coeffs: list[int], n: int, q: int, root2n: int) -> list[int]:
     a_hat = []
 
     for j in range(0, n):
@@ -17,7 +17,7 @@ def ntt_psi(coeffs, n, q, root2n):#, q, root2n):
         a_hat.append(util.mod(aj, q))
     return a_hat#Polynomial(a_hat, q)
 
-def intt_psi(coeffs, n, q, root2n):#, q, root2n):
+def intt_psi(coeffs: list[int], n: int, q: int, root2n: int) -> list[int]:
     #print("START")
     a = []
     inv_n = util.findMultInv(n, q)
@@ -37,10 +37,10 @@ def intt_psi(coeffs, n, q, root2n):#, q, root2n):
 
 #############################
 
-def bit_reverse(x, n):
+def bit_reverse(x: int, n: int) -> int:
     return int(''.join(reversed(bin(x)[2:].zfill(n))), 2)
 
-def generate_psi_rev(n, q, psi):
+def generate_psi_rev(n: int, q: int, psi: int) -> list[int]:
     num_bits = n.bit_length() - 1  # Number of bits needed to represent n-1
     psi_powers = [(pow(psi, i, q)) for i in range(n)]  # Powers of ψ modulo q
     psi_rev = [0] * n  # Initialize the Ψrev table
@@ -56,7 +56,7 @@ def generate_psi_rev(n, q, psi):
 
 # Fast NTT/INTT implemented after algorithms 1 and 2 in https://eprint.iacr.org/2016/504.pdf
 
-def fast_ntt(a, q, psi):
+def fast_ntt(a: list[int], q: int, psi: int) -> list[int]:
     a = a[:]
     n = len(a)
     t = n
@@ -77,7 +77,7 @@ def fast_ntt(a, q, psi):
     return a
 
 
-def fast_intt(a, q, psi):
+def fast_intt(a: list[int], q: int, psi: int) -> list[int]:
     a = a[:]
     n = len(a)
     t = 1

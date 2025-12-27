@@ -1,6 +1,6 @@
 from playFHE.ckks import rns_ckks_scheme
 
-print("=== RNS CKKS TEST ===")
+print("=== RNS CKKS TEST ===\n")
 
 
 N = 2**6

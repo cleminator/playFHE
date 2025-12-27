@@ -1,11 +1,53 @@
+from __future__ import annotations
+
 from playFHE.math.poly import Polynomial
 from playFHE.ckks.ciphertext import Ciphertext
 from playFHE import util
+from playFHE.util import Number
 from math import e, pi
 import numpy as np
 
+class Key:
+    def __init__(self, b: Polynomial | int, a: Polynomial):
+        self.a = a
+        self.b = b
+
+    def __getitem__(self, index):
+        if index == 0:
+            return self.b
+        elif index == 1:
+            return self.a
+        else:
+            raise IndexError("Index out of range")
+
+    def __len__(self):
+        return 2
+
+
+class PublicKey(Key):
+    def __init__(self, b: Polynomial, a: Polynomial):
+        super().__init__(b, a)
+
+class PrivateKey(Key):
+    def __init__(self, s: Polynomial):
+        super().__init__(1, s)
+
+class MultKey(Key):
+    def __init__(self, b: Polynomial, a: Polynomial):
+        super().__init__(b, a)
 
 class CKKS:
+
+    m: int
+    xi: complex
+    sigma_R_basis: list[list[Number]]
+    sigma_R_basis_T: list[list[Number]]
+    P: int
+    q0: int
+    delta: int
+    L: int
+    sec_dest: int
+
     def __init__(self, N, P, q0, delta, L, sec_dist):
         self.m = 2*N
         self.xi = e ** (2 * pi * 1j / self.m)  # Used for encoding
@@ -23,12 +65,12 @@ class CKKS:
         """Distribution used for secret key term s (all error terms e, e0, e1, v, u automatically use discrete gaussian)
         Source: https://eprint.iacr.org/2024/463.pdf """
     
-    def qL(self):
+    def qL(self) -> int:
         """Return the full modulus"""
         return self.q0 * self.delta**self.L
 
 
-    def vandermonde(self):
+    def vandermonde(self) -> list[list[Number]]:
         """Computes the Vandermonde matrix from an m-th root of unity.
         Source: https://blog.openmined.org/ckks-explained-part-1-simple-encoding-and-decoding/"""
         n = self.m // 2
@@ -43,18 +85,18 @@ class CKKS:
 
     ########
 
-    def create_sigma_R_basis(self):
+    def create_sigma_R_basis(self) -> list[list[Number]]:
         """Creates the basis (sigma(1), sigma(X), ..., sigma(X** N-1))
         Source: https://blog.openmined.org/ckks-explained-part-2-ckks-encoding-and-decoding/"""
         return util.transpose(self.vandermonde())
 
-    def compute_basis_coordinates(self, z):
+    def compute_basis_coordinates(self, z: list[Number]) -> list[float]:
         """Computes the coordinates of a vector with respect to the orthogonal lattice basis
         Source: https://blog.openmined.org/ckks-explained-part-2-ckks-encoding-and-decoding/"""
         output = [(util.vdot(z, b) / util.vdot(b, b)).real for b in self.sigma_R_basis]
         return output
         
-    def sigma_R_discretization(self, z):
+    def sigma_R_discretization(self, z: list[Number]) -> list[Number]:
         """Projects a vector on the lattice using coordinate wise random rounding.
         Source: https://blog.openmined.org/ckks-explained-part-2-ckks-encoding-and-decoding/"""
         coordinates = self.compute_basis_coordinates(z)
@@ -66,16 +108,16 @@ class CKKS:
     
     ##########
     
-    def sigma_inverse(self, vec):
+    def sigma_inverse(self, vec: list[Number]) -> list[Number]:
         """Encodes the vector b in a polynomial using an M-th root of unity.
         Source: https://blog.openmined.org/ckks-explained-part-1-simple-encoding-and-decoding/"""
         van = self.vandermonde()
         #coeffs = util.gaussian_elimination(van, vec)
-        coeffs = np.linalg.solve(van, vec)
-        p = Polynomial(coeffs)
-        return p
+        coeffs = np.linalg.solve(van, vec).tolist()
+        # p = Polynomial(coeffs)
+        return coeffs # p
     
-    def sigma(self, p):
+    def sigma(self, p: Polynomial) -> list[complex]:
         """Decodes a polynomial by applying it to the M-th roots of unity.
         Source: https://blog.openmined.org/ckks-explained-part-1-simple-encoding-and-decoding/"""
         outputs = []
@@ -88,13 +130,13 @@ class CKKS:
     
     ###########
     
-    def pi(self, z):
+    def pi(self, z: list[complex]) -> list[complex]:
         """Projects a vector of H into C^{N/2}
         Source: https://blog.openmined.org/ckks-explained-part-2-ckks-encoding-and-decoding/"""
         n = self.m // 4
         return z[:n]
     
-    def pi_inverse(self, z):
+    def pi_inverse(self, z: list[complex]) -> list[complex]:
         """Expands a vector of C^{N/2} by expanding it with its complex conjugate
         Source: https://blog.openmined.org/ckks-explained-part-2-ckks-encoding-and-decoding/"""
         z_conjugate = z[::-1]
@@ -105,7 +147,7 @@ class CKKS:
     ############
     
     
-    def encode(self, vec):
+    def encode(self, vec: list[float]) -> Polynomial:
         """Encodes a vector by expanding it first to H, scale it, project it on the lattice of sigma(R), and performs sigma inverse.
         Source: https://blog.openmined.org/ckks-explained-part-2-ckks-encoding-and-decoding/"""
 
@@ -113,17 +155,18 @@ class CKKS:
         pi_z = self.pi_inverse(vec)
         scaled_pi_z = [self.delta * z for z in pi_z] #self.delta * pi_z
         rounded_scaled_pi_z = self.sigma_R_discretization(scaled_pi_z)
-        p = self.sigma_inverse(rounded_scaled_pi_z)
+        sigma_inv = self.sigma_inverse(rounded_scaled_pi_z)
 
-        coef = [round(x.real) for x in p.coeffs]
+        coef = [round(x.real) for x in sigma_inv]
         p = Polynomial(coef, self.qL())
         return p
         
     
-    def decode(self, p):
+    def decode(self, p: Polynomial) -> list[float]:
         """Decodes a polynomial by removing the scale, evaluating on the roots, and project it on C^(N/2)
         Source: https://blog.openmined.org/ckks-explained-part-2-ckks-encoding-and-decoding/"""
         rescaled_p = Polynomial([c / self.delta for c in p.coeffs])
+        #rescaled_c = [c / self.delta for c in p.coeffs]
         z = self.sigma(rescaled_p)
         pi_z = self.pi(z)
         #Extract real parts of complex vector
@@ -134,7 +177,7 @@ class CKKS:
     ######################################################
 
 
-    def keygen(self):
+    def keygen(self) -> tuple[PublicKey, PrivateKey]:
         """Function to generate public key, private key
         Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
         match self.sec_dist:
@@ -153,13 +196,15 @@ class CKKS:
         b = b * -1
         b = b + e
         
-        sk = (1, s)
-        pk = (b, a)
-        
+        #sk = (1, s)
+        #pk = (b, a)
+        sk = PrivateKey(s)
+        pk = PublicKey(b, a)
+
         return pk, sk
     
 
-    def evkeygen(self, sk):
+    def evkeygen(self, sk: PrivateKey) -> MultKey:
         """ Function to generate evaluation key for Ciphertext-Ciphertext multiplication
         Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
         ap = Polynomial(util.sample_uniform_coeffs(self.m // 2, self.P * self.qL()), self.P * self.qL())
@@ -170,10 +215,11 @@ class CKKS:
         bp = bp + ep
         p_term = (sk[1] * sk[1] * self.P)
         bp = bp + p_term
-        evk = (bp, ap)
+        #evk = (bp, ap)
+        evk = MultKey(bp, ap)
         return evk
     
-    def encrypt(self, m, pk):
+    def encrypt(self, m: Polynomial, pk: PublicKey) -> Ciphertext:
         """Encrypts a previously encoded plaintext into a ciphertext using the public key
         Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
         #v = Polynomial(util.sample_gaussian_coeffs(self.m//2), self.qL())
@@ -188,7 +234,7 @@ class CKKS:
         c = Ciphertext(c0, c1, self.P, self.q0, self.delta, self.L)
         return c
     
-    def decrypt(self, c, sk):
+    def decrypt(self, c: Ciphertext, sk: PrivateKey) -> Polynomial:
         """Decrypts a ciphertext using the secret key and returns a plaintext polynomial
         Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
         return c.b + (c.a * sk[1])

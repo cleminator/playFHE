@@ -1,13 +1,63 @@
+from __future__ import annotations
+
 from playFHE.math.poly import Polynomial
 from playFHE.math.rns_poly import RNSPolynomial
 from playFHE.ckks.rns_ciphertext import RNSCiphertext
 from playFHE.ckks.ckks_scheme import CKKS
 from playFHE import util
+from playFHE.util import Number
 from math import e, pi, prod
 import numpy as np
 
+class RNSKey:
+    def __init__(self, b: RNSPolynomial | int, a: RNSPolynomial):
+        self.a = a
+        self.b = b
+
+    def __getitem__(self, index):
+        if index == 0:
+            return self.b
+        elif index == 1:
+            return self.a
+        else:
+            raise IndexError("Index out of range")
+
+    def __len__(self):
+        return 2
+
+
+class RNSPublicKey(RNSKey):
+    def __init__(self, b: RNSPolynomial, a: RNSPolynomial):
+        super().__init__(b, a)
+
+class RNSPrivateKey(RNSKey):
+    def __init__(self, s: RNSPolynomial):
+        super().__init__(1, s)
+
+class RNSMultKey(RNSKey):
+    def __init__(self, b: RNSPolynomial, a: RNSPolynomial):
+        super().__init__(b, a)
+
 
 class RNSCKKS(CKKS):
+
+    B: list[int]
+    C: list[int]
+    m: int
+    xi: complex
+    sigma_R_basis: list[list[Number]]
+    sigma_R_basis_T: list[list[Number]]
+    k: int
+    p: int
+    B: list[int]
+    L: int
+    C: list[int]
+    q: int
+    q0: int
+    roots: dict[int, int]
+    sec_dist: int
+
+
     def __init__(self, N, p, k, q0, q, L, sec_dist):#C, q, sec_dist):
         self.B = []
         self.C = []
@@ -35,7 +85,7 @@ class RNSCKKS(CKKS):
         self.generate_roots()
         self.sec_dist = sec_dist
 
-    def qL(self):
+    def qL(self) -> int:
         """Return the full modulus"""
         return prod(self.C)
 
@@ -45,7 +95,7 @@ class RNSCKKS(CKKS):
         for p in self.B:
             self.roots[p] = util.find_2nth_root_of_unity(self.m // 2, p)
 
-    def generate_basis(self, bitsize, length):
+    def generate_basis(self, bitsize: int, length: int) -> list[int]:
         b = []
         next_prime = 2**bitsize
         for i in range(length):
@@ -60,8 +110,7 @@ class RNSCKKS(CKKS):
         return b
 
 
-
-    def sigma_inverse(self, vec):
+    def sigma_inverse(self, vec: list[Number]) -> list[Number]:
         """Encodes the vector b in a polynomial using an M-th root of unity.
         Source: https://blog.openmined.org/ckks-explained-part-1-simple-encoding-and-decoding/"""
         van = self.vandermonde()
@@ -71,7 +120,7 @@ class RNSCKKS(CKKS):
         return [c.real for c in coeffs]
 
 
-    def encode(self, vec):
+    def encode(self, vec: list[float]) -> RNSPolynomial:
         """Encodes a vector by expanding it first to H, scale it, project it on the lattice of sigma(R), and performs sigma inverse.
         Source: https://blog.openmined.org/ckks-explained-part-2-ckks-encoding-and-decoding/"""
         vec = [complex(vv, 0) for vv in vec]  # Convert list of real numbers to complex numbers
@@ -87,7 +136,7 @@ class RNSCKKS(CKKS):
 
         return p
 
-    def decode(self, p):
+    def decode(self, p: RNSPolynomial) -> list[float]:
         """Decodes a polynomial by removing the scale, evaluating on the roots, and project it on C^(N/2)
         Source: https://blog.openmined.org/ckks-explained-part-2-ckks-encoding-and-decoding/"""
         #rescaled_p = Polynomial([c / self.delta for c in p.coeffs])
@@ -104,7 +153,7 @@ class RNSCKKS(CKKS):
 
     ###########################
 
-    def keygen(self):
+    def keygen(self) -> tuple[RNSPublicKey, RNSPrivateKey]:
         """Function to generate public key, private key
         Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
         match self.sec_dist:
@@ -126,14 +175,17 @@ class RNSCKKS(CKKS):
         b = a * s
         #print("mult const")
         b = b * -1
-        #b = b + e
+        b = b + e
 
-        sk = (1, s)
-        pk = (b, a)
+        #sk = (1, s)
+        #pk = (b, a)
+
+        sk = RNSPrivateKey(s)
+        pk = RNSPublicKey(b, a)
 
         return pk, sk
 
-    def encrypt(self, m, pk):
+    def encrypt(self, m: RNSPolynomial, pk: RNSPublicKey) -> RNSCiphertext:
         """Encrypts a previously encoded plaintext into a ciphertext using the public key
         Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
         # v = Polynomial(util.sample_gaussian_coeffs(self.m//2), self.qL())
@@ -142,13 +194,13 @@ class RNSCKKS(CKKS):
         e1 = RNSPolynomial(self.B, self.C, self.roots, coeffs=util.sample_gaussian_coeffs(self.m // 2))
 
         # c = ((v, v) * self.pk) + (m + e0, e1)
-        c0 = (v * pk[0]) + m# + e0
-        c1 = (v * pk[1])# + e1
+        c0 = (v * pk[0]) + m + e0
+        c1 = (v * pk[1]) + e1
 
         c = RNSCiphertext(c0, c1, self.B, self.C, self.p, self.q0, self.q, self.roots) #c0, c1, self.P, self.q0, self.delta, self.L)
         return c
 
-    def decrypt(self, c, sk):
+    def decrypt(self, c: RNSCiphertext, sk: RNSPrivateKey) -> RNSPolynomial:
         """Decrypts a ciphertext using the secret key and returns a plaintext polynomial
         Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
         return c.b + (c.a * sk[1])

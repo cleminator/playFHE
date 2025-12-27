@@ -1,11 +1,26 @@
+from __future__ import annotations
+
 from playFHE.math.poly import Polynomial
 import copy
 
 from playFHE.ckks.ciphertext import Ciphertext
+from playFHE.math.rns_poly import RNSPolynomial
 
 
 class RNSCiphertext(Ciphertext):
-    def __init__(self, b, a, B, C, p, q0, q, roots): #P, q0, delta, L):
+
+    b: RNSPolynomial
+    a: RNSPolynomial
+    B: list[int]
+    C: list[int]
+    p: int
+    q0: int
+    q: int
+    k: int
+    l: int
+    roots: dict[int, int]
+
+    def __init__(self, b: RNSPolynomial, a: RNSPolynomial, B: list[int], C: list[int], p: int, q0: int, q: int, roots: dict[int, int]): #P, q0, delta, L):
         self.b = b
         self.a = a
 
@@ -20,7 +35,7 @@ class RNSCiphertext(Ciphertext):
         self.roots = roots
 
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "Ciphertext (q0: " + str(self.q0) + ", q: " + str(self.q) + ", l: " + str(self.l) + ")"
 
     ############################################################

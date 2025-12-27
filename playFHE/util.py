@@ -1,7 +1,9 @@
 import random
 from math import floor, ceil
 
-def transpose(matrix):
+Number = float | complex
+
+def transpose(matrix: list[list[Number]]) -> list[list[Number]]:
     rows = len(matrix)
     cols = len(matrix[0])
 
@@ -13,12 +15,12 @@ def transpose(matrix):
 
     return transposed
 
-def vdot(a, b):
+def vdot(a: list[Number], b: list[Number]) -> Number:
     if len(a) != len(b):
         raise ValueError("Inputs must have the same length.")
     return sum((x.conjugate() if isinstance(x, complex) else x) * y for x, y in zip(a, b))
 
-def matmul(a, b):
+def matmul(a: list[list[Number]], b: list[list[Number]] | list[Number]) -> list[list[Number]]:
     if len(a[0]) != len(b):
         raise ValueError("Incompatible matrix dimensions for multiplication")
     if not isinstance(b[0], list):
@@ -32,7 +34,7 @@ def matmul(a, b):
     return result
 
 
-def coordinate_wise_random_rounding(coordinates):
+def coordinate_wise_random_rounding(coordinates: list[float]) -> list[int]:
     """Rounds coordinates randomly.
     Source: https://web.eecs.umich.edu/~cpeikert/pubs/toolkit.pdf"""
 
@@ -49,7 +51,7 @@ def coordinate_wise_random_rounding(coordinates):
 
     return rounded_coordinates
 
-def gaussian_elimination(matrix, vector):
+def gaussian_elimination(matrix: list[list[Number]], vector: list[Number]) -> list[complex]:
     """Simple solver for linear equation systems using gaussian elimination; not optimized"""
     n = len(matrix)
 
@@ -82,7 +84,7 @@ def gaussian_elimination(matrix, vector):
 
     return solution
 
-def mod(val, mod):
+def mod(val: int, mod: int) -> int:
     """Modulo operation with representation between -q/2 and q/2
     Source: https://eprint.iacr.org/2016/421.pdf Section 2.1 Basic"""
     z_mod_q = val % mod
@@ -90,7 +92,7 @@ def mod(val, mod):
         z_mod_q -= mod
     return z_mod_q
 
-def findMultInv(a, n):
+def findMultInv(a: int, n: int) -> int:
     """Determine the multiplicative inverse of a number a mod n"""
     # Compute Extended Euclidian algorithm
     # a*x = 1 mod n
@@ -98,7 +100,7 @@ def findMultInv(a, n):
     gcd, x, _ = extGCD(a, n)
     return x % n
 
-def extGCD(a, b):
+def extGCD(a: int, b: int) -> tuple[int, int, int]:
     """Extended euclidian algorithm, used mainly for determining mult inverse
     ax + by = gcd(a, b)
     """
@@ -110,13 +112,13 @@ def extGCD(a, b):
         y = x1 - (a // b) * y1
         return gcd, x, y
         
-def GCD(a, b):
+def GCD(a: int, b: int) -> int:
     """Greatest common divisor"""
     gcd, _, _ = extGCD(a, b)
     return gcd
 
 
-def totient(m):
+def totient(m: int) -> int:
     """Calculate Euler's Totient function φ(m) manually."""
     count = 0
     for i in range(1, m):
@@ -124,7 +126,7 @@ def totient(m):
             count += 1
     return count
 
-def is_prime(n):
+def is_prime(n: int) -> bool:
     """Simple test whether a number is prime; not optimized"""
     if n <= 1:
         return False
@@ -139,7 +141,7 @@ def is_prime(n):
     return True
 
 
-def find_next_prime(n):
+def find_next_prime(n: int) -> int:
     """Determines the next prime number after the number n; not optimized"""
     p = n
     if is_prime(p):
@@ -156,7 +158,7 @@ def find_next_prime(n):
             return p
         p+=2
 
-def mod_exp(base, exp, q):
+def mod_exp(base: int, exp: int, q: int) -> int:
     """ Simple modular exponentiation function"""
     if not q:
         raise Exception("No modulus defined!")
@@ -168,27 +170,27 @@ def mod_exp(base, exp, q):
         exp //= 2
     return result
 
-def find_primitive_nth_root_of_unity(n, q):
+def find_primitive_nth_root_of_unity(n: int, q: int) -> int:
     while True:
         x = random.randint(1, q - 1)
         g = mod_exp(x, (q - 1) / n, q)
         if mod_exp(g, n / 2, q) != 1:
             return g
 
-def find_2nth_root_of_unity(N, q):
+def find_2nth_root_of_unity(N: int, q: int) -> int:
     root2n =  find_primitive_nth_root_of_unity(2*N, q)
     return root2n
 
 
-def sample_uniform_coeffs(n, q):
+def sample_uniform_coeffs(n: int, q: int) -> list[int]:
     """Uniformly sample coefficients from Z_q"""
     return [random.randint(round(-(q-1)/2), round((q-1)/2)) for i in range(0, n)]
 
-def sample_gaussian_coeffs(n, sigma=3.2):
+def sample_gaussian_coeffs(n: int, sigma: float = 3.2) -> list[int]:
     """Discrete gaussian distribution with variance sigma^2"""
     return [abs(round(random.gauss(0, sigma**2))) for i in range(0, n)]
 
-def sample_uniform_ternary_coeffs(n):
+def sample_uniform_ternary_coeffs(n: int) -> list[int]:
     """Uniform ternary distribution"""
     return [random.choice([-1, 0, 1]) for i in range(0, n)]
 
