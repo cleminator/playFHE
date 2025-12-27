@@ -1,5 +1,5 @@
-import math
-import util
+from playFHE import util
+
 
 # Schoolbook version implemented after https://eprint.iacr.org/2024/585.pdf
 
@@ -13,7 +13,7 @@ def ntt_psi(coeffs, n, q, root2n):#, q, root2n):
         aj = 0
         for i in range(0, n):
             #print("i:", i)
-            aj += util.mod_exp(root2n, 2*i*j+i, q) * coeffs[i]#root2n**(2*i*j+i) * coeffs[i]
+            aj += util.mod_exp(root2n, 2 * i * j + i, q) * coeffs[i]#root2n**(2*i*j+i) * coeffs[i]
         a_hat.append(util.mod(aj, q))
     return a_hat#Polynomial(a_hat, q)
 
@@ -28,7 +28,7 @@ def intt_psi(coeffs, n, q, root2n):#, q, root2n):
         ai = 0
         for j in range(0, n):
             #print("j:", j)
-            tmp = util.mod_exp(inv_root2n, 2*i*j+i, q)
+            tmp = util.mod_exp(inv_root2n, 2 * i * j + i, q)
             ai += util.mod((tmp * coeffs[j]), q)
         ai %= q
         ai *= inv_n

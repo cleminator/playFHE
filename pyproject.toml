@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "playFHE"
+version = "0.1.0"
+description = "Educational Fully Homomorphic Encryption playground"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name = "Clemens Krüger" }
+]
+
+dependencies = [
+    "numpy>=1.24"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
