@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from playFHE.math.poly import Polynomial
 import copy
+from playFHE.util import mod
 
 from typing import Union, TYPE_CHECKING
 
@@ -46,7 +47,7 @@ class Ciphertext:
     
     ############################################################
     
-    def add_constant(self, other: Polynomial | int | float) -> Ciphertext:
+    def add_plain(self, other: Polynomial) -> Ciphertext:
         """Addition of ciphertext + plaintext
         Source: https://eprint.iacr.org/2016/421.pdf (Section 4.1)"""
         # self: ciphertext; other: constant
@@ -64,22 +65,22 @@ class Ciphertext:
         #print(b.coeffs)
 
         print("Adding a")
-        a = self.a + self.a
+        a = self.a + other.a
         print("done")
         return Ciphertext(b, a, self.P, self.q0, self.delta, self.l)
     
-    def __add__(self, other: Ciphertext | Polynomial | int | float) -> Ciphertext:
+    def __add__(self, other: Ciphertext | Polynomial) -> Ciphertext:
         """Overloaded operator which chooses the correct addition"""
         if isinstance(other, Ciphertext):
             return self.add_ciph(other)
-        elif isinstance(other, Polynomial) or isinstance(other, int) or isinstance(other, float):
-            return self.add_constant(other)
+        elif isinstance(other, Polynomial):
+            return self.add_plain(other)
         else:
             return NotImplemented
 
     ################
     
-    def sub_constant(self, other: Polynomial | int | float) -> Ciphertext:
+    def sub_plain(self, other: Polynomial) -> Ciphertext:
         """Subtraction of ciphertext - plaintext
         Source: https://eprint.iacr.org/2016/421.pdf (Section 4.1)"""
         b = self.b - other
@@ -93,23 +94,27 @@ class Ciphertext:
         a = self.a - other.a
         return Ciphertext(b, a, self.P, self.q0, self.delta, self.l)
     
-    def __sub__(self, other: Polynomial | Ciphertext | int | float) -> Ciphertext:
+    def __sub__(self, other: Ciphertext | Polynomial) -> Ciphertext:
         """Overloaded operator which chooses the correct subtraction"""
         if isinstance(other, Ciphertext):
             return self.sub_ciph(other)
-        elif isinstance(other, Polynomial) or isinstance(other, int) or isinstance(other, float):
-            return self.sub_constant(other)
+        elif isinstance(other, Polynomial):
+            return self.sub_plain(other)
         else:
             return NotImplemented
 
     ################
 
-    def mult_constant(self, other: Polynomial) -> Ciphertext:
+    def mult_plain(self, other: Polynomial) -> Ciphertext:
         """Multiplication of ciphertext * plaintext
         Source: https://eprint.iacr.org/2016/421.pdf (Section 4.1)"""
-        b = self.b * other
-        a = self.a * other
-        cmult = Ciphertext(b, a, self.P, self.q0, self.delta, self.l)
+        cmult = copy.deepcopy(self)
+        print("\nMult plain")
+        print(cmult.b)
+        print(cmult.a)
+        print(other)
+        cmult.b = cmult.b * other
+        cmult.a = cmult.a * other
         cmult.rescale()
         return cmult
     
@@ -138,8 +143,11 @@ class Ciphertext:
 
         b_with_evk = evk[0] * d2
         a_with_evk = evk[1] * d2
-        b_with_evk.rescale(self.P) #.coeffs = [round(c / self.P) for c in b_with_evk.coeffs]
-        a_with_evk.rescale(self.P) #.coeffs = [round(c / self.P) for c in a_with_evk.coeffs]
+        #b_with_evk.rescale(self.P) #.coeffs = [round(c / self.P) for c in b_with_evk.coeffs]
+        #a_with_evk.rescale(self.P) #.coeffs = [round(c / self.P) for c in a_with_evk.coeffs]
+
+        b_with_evk.coeffs = [mod(round(c / self.P), self.P*b_with_evk.q) for c in b_with_evk.coeffs]
+        a_with_evk.coeffs = [mod(round(c / self.P), self.P*a_with_evk.q) for c in a_with_evk.coeffs]
 
         cmult0 = d0 + b_with_evk
         cmult1 = d1 + a_with_evk
@@ -148,20 +156,21 @@ class Ciphertext:
         cmult.rescale()
         return cmult
     
-    def __mul__(self, other: Union[tuple[Ciphertext, "MultKey"], Polynomial]) -> Ciphertext:
+    def __mul__(self, other: tuple[Ciphertext, "MultKey"] | Polynomial) -> Ciphertext:
         """Overloaded operator which chooses the correct multiplication"""
+        from playFHE.ckks.ckks_scheme import MultKey
         # First option: Ciphertext-Ciphertext Multiplication
         #     Other needs to be a tuple of (Ciphertext, evk)
         #     Example: cmult = c1 * (c2, evk)
         # Second option: Ciphertext-Constant Mult
         #     Other needs to be an int or float
         if isinstance(other, tuple):
-            if len(other) == 2 and isinstance(other[0], Ciphertext):
+            if len(other) == 2 and isinstance(other[0], Ciphertext) and isinstance(other[1], MultKey):
                 return self.mult_ciph(other)
             else:
                 return NotImplemented
         elif isinstance(other, Polynomial):
-            return self.mult_constant(other)
+            return self.mult_plain(other)
         else:
             return NotImplemented
 

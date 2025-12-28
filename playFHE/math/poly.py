@@ -4,6 +4,7 @@ from playFHE import util
 from playFHE.util import Number
 
 from typing import Union, TYPE_CHECKING
+import copy
 
 if TYPE_CHECKING:
     from playFHE.ckks.ciphertext import Ciphertext
@@ -19,11 +20,9 @@ class Polynomial:
     def __init__(self, coeffs: list[int | float], q: None | int = None):
         self.q = q #Optional modulus (encoded plaintexts do not have moduli, but ciphertexts do
         self.n = len(coeffs) #Number of coefficients
-        if q is not None:
-            self.coeffs = [self.mod(c) for c in coeffs]
-        else:
-            self.coeffs = coeffs
 
+        self.coeffs = coeffs
+        self.mod()
     
     def __str__(self) -> str:
         """Return a string representation of the polynomial."""
@@ -36,24 +35,25 @@ class Polynomial:
     ##################################################
     
     
-    def mod(self, val: int) -> int:
-        return util.mod(val, self.q)
+    def mod(self):
+        if self.q is not None:
+            self.coeffs = [util.mod(c, self.q) for c in self.coeffs]
     
     def rescale(self, ql: int):
         """Operation to get rid of the extra scaling factor after multiplying two encoded polynomials
         Source: https://eprint.iacr.org/2016/421.pdf Section 3.3"""
         self.coeffs = [(c // ql) for c in self.coeffs]
         self.q //= ql
+        self.mod()
     
     def mod_reduction(self, ql :int):
         """Operation to scale down the modulus without scaling down the coefficients; used to even moduli of two ciphertexts on different levels before multiplication
         Source: https://eprint.iacr.org/2016/421.pdf Section 3.3 "Homomorphic Operations of Ciphertexts at different levels"
         """
         self.q //= ql
-    
+        self.mod()
     
 
-    
     ##################################################
 
     def solve(self, x: Number) -> Number:
@@ -63,7 +63,9 @@ class Polynomial:
             result += coeff * (x ** i)
         return result
 
-    def add(self, other: Polynomial) -> Polynomial:
+    ##################################################
+
+    def add_poly(self, other: Polynomial) -> Polynomial:
         #print(self.coeffs)
         #print(other.coeffs)
         #print(self.q)
@@ -75,21 +77,26 @@ class Polynomial:
             c1 = self.coeffs[i] if i < self.n else 0
             c2 = other.coeffs[i] if i < other.n else 0
             result[i] = c1 + c2
-            if self.q:
-                result[i] = self.mod(result[i])  # % self.q
-        return Polynomial(result, self.q)
+        res = Polynomial(result, self.q)
+        res.mod()
+        return res
 
+    def add_scalar(self, scalar: int | float) -> Polynomial:
+        res = copy.deepcopy(self)
+        res.coeffs = [c + scalar for c in res.coeffs]
+        res.mod()
+        return res
 
-
-    def __add__(self, other: Union[Polynomial, "Ciphertext"]) -> Union[Polynomial, "Ciphertext"]:
+    def __add__(self, other: Polynomial | int | float) -> Polynomial:
         """Adding coefficients of two polynomials"""
-        from playFHE.ckks.ciphertext import Ciphertext
-        if isinstance(other, Ciphertext):
-            return other + self
-        
-        return self.add(other)
+        if isinstance(other, Polynomial):
+            return self.add_poly(other)
+        elif isinstance(other, int) or isinstance(other, float):
+            return self.add_scalar(other)
+        else:
+            return NotImplemented
 
-    def sub(self, other: Polynomial) -> Polynomial:
+    def sub_poly(self, other: Polynomial) -> Polynomial:
         max_len = max(self.n, other.n)
         result = [0] * max_len
 
@@ -97,32 +104,43 @@ class Polynomial:
             c1 = self.coeffs[i] if i < self.n else 0
             c2 = other.coeffs[i] if i < other.n else 0
             result[i] = c1 - c2
-            if self.q:
-                result[i] = self.mod(result[i])  # % self.q
-        return Polynomial(result, self.q)
+        res = Polynomial(result, self.q)
+        res.mod()
+        return res
 
-    def __sub__(self, other: Polynomial) -> Polynomial:
+    def sub_scalar(self, scalar: int | float) -> Polynomial:
+        res = copy.deepcopy(self)
+        res.coeffs = [c - scalar for c in res.coeffs]
+        res.mod()
+        return res
+
+    def __sub__(self, other: Polynomial | int | float) -> Polynomial:
         """Subtracting coefficients of two polynomials"""
-
-        return self.sub(other)
-    
-    def scalar_mult(self, scalar: float | int) -> Polynomial:
-        """Multiplication of each coefficient with a constant"""
-        cfs = [scalar * c for c in self.coeffs]
-        return Polynomial(cfs, self.q)
-    
-    def __mul__(self, other: Union[Polynomial, int, float, "Ciphertext"]) -> Union[Polynomial, "Ciphertext"]:
-        """Multiplication of two polynomials modulo (X^N +1); not optimized"""
-        from playFHE.ckks.ciphertext import Ciphertext
         if isinstance(other, Polynomial):
-            return self.negacyclic_convolution(self, other)
+            return self.sub_poly(other)
         elif isinstance(other, int) or isinstance(other, float):
-            return self.scalar_mult(other)
-        elif isinstance(other, Ciphertext):
-            return other * self
+            return self.sub_scalar(other)
         else:
             return NotImplemented
-            #raise Exception("Only Poly-Poly or Poly-int multiplication is possible")
+    
+    def mult_scalar(self, scalar: float | int) -> Polynomial:
+        """Multiplication of each coefficient with a constant"""
+        res = copy.deepcopy(self)
+        res.coeffs = [scalar * c for c in res.coeffs]
+        res.mod()
+        return res
+
+    def mult_poly(self, poly: Polynomial) -> Polynomial:
+        return self.negacyclic_convolution(self, poly)
+    
+    def __mul__(self, other: Polynomial | int | float) -> Polynomial | int | float:
+        """Multiplication of two polynomials modulo (X^N +1); not optimized"""
+        if isinstance(other, Polynomial):
+            return self.mult_poly(other)
+        elif isinstance(other, int) or isinstance(other, float):
+            return self.mult_scalar(other)
+        else:
+            return NotImplemented
 
 
     def negacyclic_convolution(self, poly1: Polynomial, poly2: Polynomial) -> Polynomial:
@@ -142,13 +160,20 @@ class Polynomial:
         for i in range(n):
             for j in range(n):
                 index = (i + j) % n
-                value = util.mod(poly1.coeffs[i] * poly2.coeffs[j], self.q)
+                value = poly1.coeffs[i] * poly2.coeffs[j]
+
                 if i + j >= n:
                     result[index] -= value  # Negacyclic wraparound
                 else:
                     result[index] += value
 
-        return Polynomial(result, self.q)
+                if poly1.q is not None or poly2.q is not None:
+                    result[index] = util.mod(result[index], poly1.q)
+
+        res = Polynomial(result, poly1.q)
+        res.mod()
+
+        return res
     
     
 

@@ -7,7 +7,7 @@ N = 2**2
 delta = 2**40
 q0 = 2**45
 L = 4
-P = 2**(60+4*30)
+P = 2**(50+4*30)
 
 start = timer()
 ckks = ckks_scheme.CKKS(N, P, q0, delta, L, 3)
@@ -20,8 +20,7 @@ print("Keygen duration:", timer() - start)
 
 #m1 = [0.1, 0.2, 0.3, 0.4]
 #m2 = [0.03, 0.04, 1, 1]
-m1 = [0.1]*(N//2)
-#m2 = [0.03]*(N//2)
+m1 = [0.2]*(N//2)
 m2 = [0.1]*(N//2)
 
 print("m1: ", m1)
