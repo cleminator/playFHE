@@ -3,14 +3,14 @@ from timeit import default_timer as timer
 
 print("=== CKKS TEST ===\n")
 
-N = 2**3
-delta = 2**30
-q0 = 2**40
+N = 2**2
+delta = 2**40
+q0 = 2**45
 L = 4
-P = 2**90
+P = 2**(60+4*30)
 
 start = timer()
-ckks = ckks_scheme.CKKS(N, P, q0, delta, L, 2)
+ckks = ckks_scheme.CKKS(N, P, q0, delta, L, 3)
 print("Setup duration:", timer() - start)
 
 start = timer()
@@ -21,7 +21,8 @@ print("Keygen duration:", timer() - start)
 #m1 = [0.1, 0.2, 0.3, 0.4]
 #m2 = [0.03, 0.04, 1, 1]
 m1 = [0.1]*(N//2)
-m2 = [0.03]*(N//2)
+#m2 = [0.03]*(N//2)
+m2 = [0.1]*(N//2)
 
 print("m1: ", m1)
 print("m2: ", m2)
@@ -44,10 +45,11 @@ print("c2: ", c2)
 
 c_add = c1 + c2
 c_add_const = c1 + p2
+
 c_sub = c1 - c2
 c_sub_const = c1 - p2
-c_mult_const = c1 * p2 * p1
-c_mult = c1 * (c_mult_const, evk)
+c_mult_const = c1 * p2
+c_mult = c1 * (c2, evk)
 
 print(c_mult)
 

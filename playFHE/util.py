@@ -194,3 +194,14 @@ def sample_uniform_ternary_coeffs(n: int) -> list[int]:
     """Uniform ternary distribution"""
     return [random.choice([-1, 0, 1]) for i in range(0, n)]
 
+def sample_sparse_ternary_coeffs(n: int, p: float = 0.5) -> list[int]:
+    coeffs = []
+    for _ in range(n):
+        r = random.random()
+        if r < p / 2:
+            coeffs.append(1)
+        elif r < p:
+            coeffs.append(-1)
+        else:
+            coeffs.append(0)
+    return coeffs

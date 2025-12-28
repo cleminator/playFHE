@@ -64,6 +64,10 @@ class Polynomial:
         return result
 
     def add(self, other: Polynomial) -> Polynomial:
+        #print(self.coeffs)
+        #print(other.coeffs)
+        #print(self.q)
+        #print(other.q)
         max_len = max(self.n, other.n)
         result = [0] * max_len
 
@@ -74,6 +78,8 @@ class Polynomial:
             if self.q:
                 result[i] = self.mod(result[i])  # % self.q
         return Polynomial(result, self.q)
+
+
 
     def __add__(self, other: Union[Polynomial, "Ciphertext"]) -> Union[Polynomial, "Ciphertext"]:
         """Adding coefficients of two polynomials"""
@@ -136,7 +142,7 @@ class Polynomial:
         for i in range(n):
             for j in range(n):
                 index = (i + j) % n
-                value = poly1.coeffs[i] * poly2.coeffs[j]
+                value = util.mod(poly1.coeffs[i] * poly2.coeffs[j], self.q)
                 if i + j >= n:
                     result[index] -= value  # Negacyclic wraparound
                 else:

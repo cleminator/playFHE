@@ -59,6 +59,10 @@ class Ciphertext:
         Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
         print("Adding b")
         b = self.b + other.b
+        #print(self.b.coeffs)
+        #print(other.b.coeffs)
+        #print(b.coeffs)
+
         print("Adding a")
         a = self.a + self.a
         print("done")

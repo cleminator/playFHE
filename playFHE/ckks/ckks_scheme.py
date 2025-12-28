@@ -223,13 +223,18 @@ class CKKS:
         """Encrypts a previously encoded plaintext into a ciphertext using the public key
         Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
         #v = Polynomial(util.sample_gaussian_coeffs(self.m//2), self.qL())
-        v = Polynomial([1]*(self.m//2), self.qL()) # This polynomial with 1s as coefficients is a placeholder until I understand the purpose of the term "v"
+        v = Polynomial(util.sample_sparse_ternary_coeffs(self.m // 2, 0.5), self.qL())
+        print("Term V:")
+        print(v)
+        v = Polynomial([1]*(self.m//2), self.qL()) # This polynomial with ones as coefficients is a placeholder until I understand the purpose of the term "v"
         e0 = Polynomial(util.sample_gaussian_coeffs(self.m // 2), self.qL())
         e1 = Polynomial(util.sample_gaussian_coeffs(self.m // 2), self.qL())
-        
-        #c = ((v, v) * self.pk) + (m + e0, e1)
+
+
         c0 = (v * pk[0]) + m + e0
         c1 = (v * pk[1]) + e1
+
+
         
         c = Ciphertext(c0, c1, self.P, self.q0, self.delta, self.L)
         return c
