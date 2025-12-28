@@ -14,6 +14,7 @@ class Ciphertext:
     b: Polynomial
     a: Polynomial
     P: int
+    PqL: int
     q0: int
     delta: int
     l: int
@@ -27,6 +28,8 @@ class Ciphertext:
         self.q0 = q0
         self.delta = delta
         self.l = L
+
+        self.PqL = self.P * self.q0 * self.delta**self.l
 
     def __str__(self) -> str:
         return "Ciphertext (q0: " + str(self.q0) + ", delta: " + str(self.delta) + ", l: " + str(self.l) + ")"
@@ -122,36 +125,57 @@ class Ciphertext:
         """Multiplication of ciphertext * ciphertext with an evaluation key; Syntax is ciph3 = ciph1 * (ciph2, evk)
         Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
 
+
+        # Rewrite:
+        # Multiply
+        # Mod up
+        # key switching
+        # moddown
+
         c1 = copy.deepcopy(self)
         c2 = copy.deepcopy(other[0])
         evk = copy.deepcopy(other[1])
         
         # Check if levels are different between both ciphertexts
         while True:
+            print(f"Levels: {c1.l}, {c2.l}")
             if c1.l > c2.l:
                 c1.mod_reduction()
-            elif c1.l < other[0].l:
+            elif c1.l < c2.l:
                 c2.mod_reduction()
             else:
                 break
 
+
+
+        # Perform multiplication (resulting in three polynomials)
         d0 = c1.b * c2.b
         d1 = c1.a * c2.b + c2.a * c1.b
         d2 = c1.a * c2.a
 
         # cmult = (d0, d1) + round((d2 * evk) / P) mod ql
 
+        # Raise modulus to P*qL
+        d0.q = self.PqL
+        d1.q = self.PqL
+        d2.q = self.PqL
+
+        # Calculate term round((d2 * evk) / P)
+
         b_with_evk = evk[0] * d2
         a_with_evk = evk[1] * d2
-        #b_with_evk.rescale(self.P) #.coeffs = [round(c / self.P) for c in b_with_evk.coeffs]
-        #a_with_evk.rescale(self.P) #.coeffs = [round(c / self.P) for c in a_with_evk.coeffs]
+        b_with_evk.coeffs = [c // self.P for c in b_with_evk.coeffs]
+        a_with_evk.coeffs = [c // self.P for c in a_with_evk.coeffs]
 
-        b_with_evk.coeffs = [mod(round(c / self.P), self.P*b_with_evk.q) for c in b_with_evk.coeffs]
-        a_with_evk.coeffs = [mod(round(c / self.P), self.P*a_with_evk.q) for c in a_with_evk.coeffs]
+
+        # Combine result and lower modulus again
 
         cmult0 = d0 + b_with_evk
         cmult1 = d1 + a_with_evk
-        
+
+        cmult0.q = c1.b.q
+        cmult1.q = c1.a.q
+
         cmult = Ciphertext(cmult0, cmult1, c1.P, c1.q0, c1.delta, c1.l)
         cmult.rescale()
         return cmult

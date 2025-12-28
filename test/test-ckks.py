@@ -7,7 +7,7 @@ N = 2**2
 delta = 2**40
 q0 = 2**45
 L = 4
-P = 2**(50+4*30)
+P = 2**(100+4*40)
 
 start = timer()
 ckks = ckks_scheme.CKKS(N, P, q0, delta, L, 3)
@@ -49,8 +49,11 @@ c_sub = c1 - c2
 c_sub_const = c1 - p2
 c_mult_const = c1 * p2
 c_mult = c1 * (c2, evk)
-
+print(c1)
+print(c2)
 print(c_mult)
+c_mult_2 = c_mult * (c1, evk)
+
 
 print("")
 print("e_add", ckks.decode(ckks.decrypt(c_add, sk)))
@@ -59,4 +62,5 @@ print("e_sub", ckks.decode(ckks.decrypt(c_sub, sk)))
 print("e_sub_const", ckks.decode(ckks.decrypt(c_sub_const, sk)))
 print("e_mult", ckks.decode(ckks.decrypt(c_mult, sk)))
 print("e_mult_const", ckks.decode(ckks.decrypt(c_mult_const, sk)))
+print("e_mult_2", ckks.decode(ckks.decrypt(c_mult_2, sk)))
 

@@ -6,6 +6,7 @@ from playFHE import util
 from playFHE.util import Number
 from math import e, pi
 import numpy as np
+import copy
 
 class Key:
     def __init__(self, b: Polynomial | int, a: Polynomial):
@@ -210,10 +211,13 @@ class CKKS:
         ap = Polynomial(util.sample_uniform_coeffs(self.m // 2, self.P * self.qL()), self.P * self.qL())
         ep = Polynomial(util.sample_gaussian_coeffs(self.m // 2), self.P * self.qL())
 
-        bp = ap * sk[1]
+        s = copy.deepcopy(sk[1])
+        s.q = s.q * self.P
+
+        bp = ap * s
         bp = bp * -1
         bp = bp + ep
-        p_term = (sk[1] * sk[1] * self.P)
+        p_term = (s * s * self.P)
         bp = bp + p_term
         #evk = (bp, ap)
         evk = MultKey(bp, ap)
@@ -242,6 +246,10 @@ class CKKS:
     def decrypt(self, c: Ciphertext, sk: PrivateKey) -> Polynomial:
         """Decrypts a ciphertext using the secret key and returns a plaintext polynomial
         Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
-        return c.b + (c.a * sk[1])
+
+        s = copy.deepcopy(sk[1])
+        s.q = c.b.q
+
+        return c.b + (c.a * s)
 
 

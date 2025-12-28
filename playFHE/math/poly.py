@@ -46,7 +46,7 @@ class Polynomial:
         self.q //= ql
         self.mod()
     
-    def mod_reduction(self, ql :int):
+    def mod_reduction(self, ql: int):
         """Operation to scale down the modulus without scaling down the coefficients; used to even moduli of two ciphertexts on different levels before multiplication
         Source: https://eprint.iacr.org/2016/421.pdf Section 3.3 "Homomorphic Operations of Ciphertexts at different levels"
         """
@@ -152,6 +152,9 @@ class Polynomial:
 
         if n != m:
             raise ValueError("Negacyclic convolution requires polynomials of the same length.")
+
+        if poly1.q != poly2.q:
+            raise ValueError("Polynomial multiplication requires the same modulus q for both polynomials")
 
         # Initialize the result coefficients
         result = [0] * n
