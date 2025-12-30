@@ -6,8 +6,6 @@ from playFHE.util import Number
 from typing import Union, TYPE_CHECKING
 import copy
 
-if TYPE_CHECKING:
-    from playFHE.ckks.ciphertext import Ciphertext
 
 class Polynomial:
     """

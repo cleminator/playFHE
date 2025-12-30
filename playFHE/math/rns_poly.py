@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from copy import copy
+import copy
 
 from playFHE.math import ntt
 from playFHE import util
 from playFHE.util import Number
 from playFHE.math.poly import Polynomial
+
 
 from typing import Union, TYPE_CHECKING
 
@@ -19,16 +20,21 @@ class RNSLimb:
     q: int
     root: int
 
+    def mod(self):
+        self.coeffs = [util.mod(c, self.q) for c in self.coeffs]
+
     def __init__(self, coeffs: list[int], q: int, root: int):
         self.coeffs = coeffs
         self.q = q
         self.root = root
+        self.mod()
     def __copy__(self):
         return RNSLimb(self.coeffs[:], self.q, self.root)
     def __getitem__(self, item: int):
         return self.coeffs[item]
     def __setitem__(self, key: int, value: int):
         self.coeffs[key] = value
+        self.mod()
     def __iter__(self):
         for c in self.coeffs:
             yield c
@@ -115,7 +121,7 @@ class RNSPolynomial(Polynomial):
 
     def set_limbs(self, limbs: list[RNSLimb]) -> RNSPolynomial:
         self.n = len(limbs[0])
-        self.limbs = [copy(l) for l in limbs[:]] #limbs[:]]
+        self.limbs = [copy.copy(l) for l in limbs[:]] #limbs[:]]
         if not self.ntt_domain:
             self.convert_RNS_to_NTT()
         return self
@@ -125,15 +131,17 @@ class RNSPolynomial(Polynomial):
     ## These functions will transform each of the limbs to and from NTT domain
 
     def convert_RNS_to_NTT(self):
-        for l in self.limbs:
-            #print("Converting to NTT limb")
-            l.coeffs = ntt.fast_ntt(l.coeffs, l.q, l.root)
-        self.ntt_domain = True
+        if not self.ntt_domain:
+            for l in self.limbs:
+                #print("Converting to NTT limb")
+                l.coeffs = ntt.fast_ntt(l.coeffs, l.q, l.root)
+            self.ntt_domain = True
 
     def convert_NTT_to_RNS(self):
-        for l in self.limbs:
-            l.coeffs = ntt.fast_intt(l.coeffs, l.q, l.root)
-        self.ntt_domain = False
+        if self.n:
+            for l in self.limbs:
+                l.coeffs = ntt.fast_intt(l.coeffs, l.q, l.root)
+            self.ntt_domain = False
 
     ###########################################################################
 
@@ -156,6 +164,10 @@ class RNSPolynomial(Polynomial):
 
     ######################################
 
+    def mod(self):
+        for l in self.limbs:
+            l.mod()
+
     def rescale(self):
         for l in self.limbs:
             limb = []
@@ -168,23 +180,17 @@ class RNSPolynomial(Polynomial):
 
         self.limbs.pop()
         self.C.pop()
+        self.mod()
 
 
     def mod_reduction(self):
         self.limbs.pop()
         self.C.pop()
+        self.mod()
 
     ######################################
 
-    def __add__(self, other: Union[RNSPolynomial, "RNSCiphertext"]) -> Union[RNSPolynomial, "RNSCiphertext"]:
-        from playFHE.ckks.rns_ciphertext import RNSCiphertext
-        if isinstance(other, RNSCiphertext):
-            return other + self
-
-        if self.n != other.n:
-            raise Exception("Polynomials need to have equal ring dimension")
-
-
+    def add_poly(self, other: RNSPolynomial) -> RNSPolynomial:
         limbs = []
         # zip() will stop at the end of the shortest list.
         # If one poly is lower level, the result will therefore automatically be reduced to that level
@@ -192,13 +198,35 @@ class RNSPolynomial(Polynomial):
             lc = [0] * self.n
             for i in range(self.n):
                 lc[i] = util.mod(la[i] + lb[i], q)
-            limbs.append(RNSLimb(lc, la.q, la.root))#lc)
+            limbs.append(RNSLimb(lc, la.q, la.root))  # lc)
         return RNSPolynomial(self.B, self.C[:len(limbs)], self.roots, self.ntt_domain).set_limbs(limbs)
 
-    def __sub__(self, other: RNSPolynomial) -> RNSPolynomial:
+    def add_scalar(self, scalar: int | float) -> RNSPolynomial:
+        limbs = []
+        # zip() will stop at the end of the shortest list.
+        # If one poly is lower level, the result will therefore automatically be reduced to that level
+        for la, q in zip(self.limbs, self.C):
+            lc = [0] * self.n
+            for i in range(self.n):
+                lc[i] = util.mod(la[i] + scalar, q)
+            limbs.append(RNSLimb(lc, la.q, la.root))  # lc)
+        return RNSPolynomial(self.B, self.C[:len(limbs)], self.roots, self.ntt_domain).set_limbs(limbs)
+
+    def __add__(self, other: RNSPolynomial | int | float) -> RNSPolynomial:
+
         if self.n != other.n:
             raise Exception("Polynomials need to have equal ring dimension")
 
+        if isinstance(other, RNSPolynomial):
+            return self.add_poly(other)
+        elif isinstance(other, int) or isinstance(other, float):
+            return self.add_scalar(other)
+        else:
+            return NotImplemented
+
+    ###
+
+    def sub_poly(self, other: RNSPolynomial) -> RNSPolynomial:
         limbs = []
         # zip() will stop at the end of the shortest list.
         # If one poly is lower level, the result will therefore automatically be reduced to that level
@@ -206,40 +234,65 @@ class RNSPolynomial(Polynomial):
             lc = [0] * self.n
             for i in range(self.n):
                 lc[i] = util.mod(la[i] - lb[i], q)
-            limbs.append(RNSLimb(lc, la.q, la.root))#lc)
+            limbs.append(RNSLimb(lc, la.q, la.root))  # lc)
         return RNSPolynomial(self.B, self.C[:len(limbs)], self.roots, self.ntt_domain).set_limbs(limbs)
 
-    def scalar_mult(self, scalar: int | float) -> RNSPolynomial:
+    def sub_scalar(self, scalar: int | float) -> RNSPolynomial:
+        limbs = []
+        # zip() will stop at the end of the shortest list.
+        # If one poly is lower level, the result will therefore automatically be reduced to that level
+        for la, q in zip(self.limbs, self.C):
+            lc = [0] * self.n
+            for i in range(self.n):
+                lc[i] = util.mod(la[i] - scalar, q)
+            limbs.append(RNSLimb(lc, la.q, la.root))  # lc)
+        return RNSPolynomial(self.B, self.C[:len(limbs)], self.roots, self.ntt_domain).set_limbs(limbs)
+
+    def __sub__(self, other: RNSPolynomial | int | float) -> RNSPolynomial:
+
+        if self.n != other.n:
+            raise Exception("Polynomials need to have equal ring dimension")
+
+        if isinstance(other, RNSPolynomial):
+            return self.sub_poly(other)
+        elif isinstance(other, int) or isinstance(other, float):
+            return self.sub_scalar(other)
+        else:
+            return NotImplemented
+
+    ###
+
+    def mult_scalar(self, scalar: int | float) -> RNSPolynomial:
         limbs = []
         for l, q in zip(self.limbs, self.C):
             limbs.append(RNSLimb([util.mod(scalar * c, q) for c in l], l.q, l.root))
         return RNSPolynomial(self.B, self.C, self.roots, self.ntt_domain).set_limbs(limbs)
 
-    def negacyclic_convolution(self, poly1: RNSPolynomial, poly2: RNSPolynomial) -> RNSPolynomial:
+    def mult_poly(self, other: RNSPolynomial) -> RNSPolynomial:
+        p1 = copy.deepcopy(self)
+        p2 = copy.deepcopy(other)
+        if not p1.ntt_domain:
+            p1.convert_RNS_to_NTT()
+        if not p2.ntt_domain:
+            p2.convert_RNS_to_NTT()
+
         limbs = []
-        for la, lb in zip(poly1.limbs, poly2.limbs):
-            n = len(la)
-            m = len(lb)
-
-            if n != m:
-                raise ValueError("Negacyclic convolution requires polynomials of the same length.")
-
-            result = [0] * n
-
+        # zip() will stop at the end of the shortest list.
+        # If one poly is lower level, the result will therefore automatically be reduced to that level
+        for la, lb, q in zip(self.limbs, other.limbs, self.C):
+            lc = [0] * self.n
             for i in range(self.n):
-                result[i] = la[i] * lb[i]
+                lc[i] = util.mod(la[i] * lb[i], q)
+            limbs.append(RNSLimb(lc, la.q, la.root))  # lc)
+        return RNSPolynomial(self.B, self.C[:len(limbs)], self.roots, self.ntt_domain).set_limbs(limbs)
 
-            limbs.append(RNSLimb([util.mod(r, la.q) for r in result], la.q, la.root))
-        return RNSPolynomial(poly1.B, poly1.C, poly1.roots, poly1.ntt_domain).set_limbs(limbs)
 
     def __mul__(self, other: Union[RNSPolynomial, int, float, "RNSCiphertext"]) -> Union[RNSPolynomial, "RNSCiphertext"]:
         """Multiplication of two polynomials modulo (X^N +1); not optimized"""
-        from playFHE.ckks.rns_ciphertext import RNSCiphertext
+
         if isinstance(other, RNSPolynomial):
-            return self.negacyclic_convolution(self, other)
+            return self.mult_poly(other)
         elif isinstance(other, int) or isinstance(other, float):
-            return self.scalar_mult(other)
-        elif isinstance(other, RNSCiphertext):
-            return other * self
+            return self.mult_scalar(other)
         else:
             return NotImplemented

@@ -165,11 +165,11 @@ class RNSCKKS(CKKS):
                 s_c = util.sample_uniform_ternary_coeffs(self.m // 2)
             case _:
                 s_c = util.sample_uniform_ternary_coeffs(self.m // 2)
-        #s = RNSPolynomial(self.B, self.C, self.roots, coeffs=s_c)s
-        #a = RNSPolynomial(self.B, self.C, self.roots, coeffs=util.sample_uniform_coeffs(self.m // 2, self.qL()))
+        s = RNSPolynomial(self.B, self.C, self.roots, coeffs=s_c)
+        a = RNSPolynomial(self.B, self.C, self.roots, coeffs=util.sample_uniform_coeffs(self.m // 2, self.qL()))
         #print("Sampling")
-        s = RNSPolynomial(self.B, self.C, self.roots, coeffs=[1]*(self.m // 2))
-        a = RNSPolynomial(self.B, self.C, self.roots, coeffs=[1]*(self.m // 2))
+        #s = RNSPolynomial(self.B, self.C, self.roots, coeffs=[1]*(self.m // 2))
+        #a = RNSPolynomial(self.B, self.C, self.roots, coeffs=[1]*(self.m // 2))
         e = RNSPolynomial(self.B, self.C, self.roots, coeffs=util.sample_gaussian_coeffs(self.m // 2))
         #print("Mult poly")
         b = a * s
@@ -188,8 +188,8 @@ class RNSCKKS(CKKS):
     def encrypt(self, m: RNSPolynomial, pk: RNSPublicKey) -> RNSCiphertext:
         """Encrypts a previously encoded plaintext into a ciphertext using the public key
         Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
-        # v = Polynomial(util.sample_gaussian_coeffs(self.m//2), self.qL())
-        v = RNSPolynomial(self.B, self.C, self.roots, coeffs=[1] * (self.m // 2))  # This polynomial with 1s as coefficients is a placeholder until I understand the purpose of the term "v"
+        v = RNSPolynomial(self.B, self.C, self.roots, coeffs=util.sample_sparse_ternary_coeffs(self.m//2))
+        #v = RNSPolynomial(self.B, self.C, self.roots, coeffs=[1] * (self.m // 2))  # This polynomial with 1s as coefficients is a placeholder until I understand the purpose of the term "v"
         e0 = RNSPolynomial(self.B, self.C, self.roots, coeffs=util.sample_gaussian_coeffs(self.m // 2))
         e1 = RNSPolynomial(self.B, self.C, self.roots, coeffs=util.sample_gaussian_coeffs(self.m // 2))
 

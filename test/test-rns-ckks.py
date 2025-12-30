@@ -4,7 +4,7 @@ print("=== RNS CKKS TEST ===\n")
 
 
 N = 2**6
-q = 30
+q = 35
 q0 = 40
 L = 2
 k = 1
@@ -13,7 +13,7 @@ p = 18
 
 
 print("Setup")
-rnsckks = rns_ckks_scheme.RNSCKKS(N, p, k, q0, q, L, 2)
+rnsckks = rns_ckks_scheme.RNSCKKS(N, p, k, q0, q, L, 3)
 print("Keygen")
 pk, sk = rnsckks.keygen()
 
@@ -48,9 +48,9 @@ p5 = p3 * p1
 p5.rescale()
 print("p5=p3*p1:", rnsckks.decode(p5))
 
-#c1 = rnsckks.encrypt(p1, pk)
-#c2 = rnsckks.encrypt(p2, pk)
-#print("\nc1:", c1)
-#print("c2:", c2)
-#print("m1'", rnsckks.decode(rnsckks.decrypt(c1, sk)))
-#print("m2'", rnsckks.decode(rnsckks.decrypt(c2, sk)))
+c1 = rnsckks.encrypt(p1, pk)
+c2 = rnsckks.encrypt(p2, pk)
+print("\nc1:", c1)
+print("c2:", c2)
+print("m1'", rnsckks.decode(rnsckks.decrypt(c1, sk)))
+print("m2'", rnsckks.decode(rnsckks.decrypt(c2, sk)))
