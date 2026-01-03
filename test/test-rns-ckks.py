@@ -3,13 +3,13 @@ from playFHE.ckks import rns_ckks_scheme
 print("=== RNS CKKS TEST ===\n")
 
 
-N = 2**6
+N = 2**3
 q = 35
 q0 = 40
 L = 2
 k = 1
 #P = 2**90
-p = 18
+p = 38
 
 
 print("Setup")
@@ -50,7 +50,12 @@ print("p5=p3*p1:", rnsckks.decode(p5))
 
 c1 = rnsckks.encrypt(p1, pk)
 c2 = rnsckks.encrypt(p2, pk)
+c3 = c1 + c2
+c4 = c1 - c2
+
 print("\nc1:", c1)
-print("c2:", c2)
 print("m1'", rnsckks.decode(rnsckks.decrypt(c1, sk)))
 print("m2'", rnsckks.decode(rnsckks.decrypt(c2, sk)))
+
+print("m3'", rnsckks.decode(rnsckks.decrypt(c3, sk)))
+print("m4'", rnsckks.decode(rnsckks.decrypt(c4, sk)))

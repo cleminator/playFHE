@@ -7,7 +7,7 @@ from playFHE.ckks.ciphertext import Ciphertext
 from playFHE.math.rns_poly import RNSPolynomial
 
 
-class RNSCiphertext(Ciphertext):
+class RNSCiphertext:
 
     b: RNSPolynomial
     a: RNSPolynomial
@@ -51,3 +51,65 @@ class RNSCiphertext(Ciphertext):
         self.b.mod_reduction()
         self.a.mod_reduction()
         self.l -= 1
+
+    ############################################################
+
+    def add_plain(self, other: RNSPolynomial) -> RNSCiphertext:
+        """Addition of ciphertext + plaintext
+        Source: https://eprint.iacr.org/2016/421.pdf (Section 4.1)"""
+        # self: ciphertext; other: constant
+        res = copy.deepcopy(self)
+
+        res.b = res.b + other
+        return res
+
+    def add_ciph(self, other: RNSCiphertext) -> RNSCiphertext:
+        """Addition of ciphertext + ciphertext
+        Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
+
+        res = copy.deepcopy(self)
+
+        res.b = res.b + other.b
+        res.a = res.a + other.a
+        return res
+
+    def __add__(self, other: RNSCiphertext | RNSPolynomial) -> RNSCiphertext:
+        """Overloaded operator which chooses the correct addition"""
+        if isinstance(other, RNSCiphertext):
+            return self.add_ciph(other)
+        elif isinstance(other, RNSPolynomial):
+            return self.add_plain(other)
+        else:
+            return NotImplemented
+
+    ################
+
+    def sub_plain(self, other: RNSPolynomial) -> RNSCiphertext:
+        """Subtraction of ciphertext - plaintext
+        Source: https://eprint.iacr.org/2016/421.pdf (Section 4.1)"""
+        # self: ciphertext; other: constant
+        res = copy.deepcopy(self)
+
+        res.b = res.b - other
+        return res
+
+    def sub_ciph(self, other: RNSCiphertext) -> RNSCiphertext:
+        """Subtraction of ciphertext - ciphertext
+        Source: https://eprint.iacr.org/2016/421.pdf (Section 3.4)"""
+
+        res = copy.deepcopy(self)
+
+        res.b = res.b - other.b
+        res.a = res.a - other.a
+        return res
+
+    def __sub__(self, other: RNSCiphertext | RNSPolynomial) -> RNSCiphertext:
+        """Overloaded operator which chooses the correct subtraction"""
+        if isinstance(other, RNSCiphertext):
+            return self.sub_ciph(other)
+        elif isinstance(other, RNSPolynomial):
+            return self.sub_plain(other)
+        else:
+            return NotImplemented
+
+    ################

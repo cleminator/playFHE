@@ -7,6 +7,7 @@ from playFHE import util
 from playFHE.util import Number
 from playFHE.math.poly import Polynomial
 
+from math import prod
 
 from typing import Union, TYPE_CHECKING
 
@@ -50,6 +51,7 @@ class RNSLimb:
 class RNSPolynomial(Polynomial):
     # B: RNS base of P [p0, p1, ..., pk-1] (len(B) = k)
     # C: RNS base of Q [q0, q1, ..., qL] (len(C) = L+1)
+    # D: RNS base of P*Q -> B+C (len(D) = k + L+1)
     # limbs: list of RNS limbs, each limb i is a list of coeffs mod q_i
 
     B: list[int]
@@ -61,6 +63,7 @@ class RNSPolynomial(Polynomial):
     def __init__(self, B: list[int], C: list[int], roots: dict[int, int], is_ntt: bool = False, coeffs: list[int] | None = None):
         self.B = B[:]
         self.C = C[:]
+        self.D = self.B + self.C
         self.roots = roots
         self.limbs = []
 
@@ -145,9 +148,38 @@ class RNSPolynomial(Polynomial):
 
     ###########################################################################
 
-    def conv(self, base1, base2):
+    def conv(self, limbs: list[RNSLimb], base1: list[int], base2: list[int]) -> list[RNSLimb]:
         # Convert limbs from basis1 (e.g. B) to basis2 (e.g. C)
-        pass
+        res: list[RNSLimb] = []
+
+        q = base1[:] # C
+        p = base2[:] # B
+        l = len(q)
+        k = len(p)
+
+        Q = prod(q)
+
+        qhat = []
+        qhat_inv = []
+
+        for j in range(l):
+            qhat.append(Q // q[j])  # Product of all q except qj
+            qhat_inv.append(util.findMultInv(qhat[j], q[j]))
+
+        for i in range(k):
+            limb_coeffs = []
+
+            for c in range(self.n):
+                a = 0
+                for j in range(l):
+                    a_term = util.mod(limbs[j][c] * qhat_inv[j], q[j])
+                    a_term = a_term * qhat[j]
+                    a += a_term
+                limb_coeffs.append(util.mod(a, p[i]))
+
+            res.append(RNSLimb(limb_coeffs, p[i], self.roots[p[i]]))
+
+        return res
 
     def mod_up(self):
         pass
